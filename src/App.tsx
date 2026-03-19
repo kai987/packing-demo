@@ -1260,21 +1260,7 @@ function isBoardEditorStateEqual(left: BoardEditorState | undefined, right: Boar
 }
 
 function getInitialLanguage(): Language {
-  if (typeof navigator === 'undefined') {
-    return 'en'
-  }
-
-  const browserLanguage = navigator.language.toLowerCase()
-
-  if (browserLanguage.startsWith('zh')) {
-    return 'zh'
-  }
-
-  if (browserLanguage.startsWith('ja')) {
-    return 'ja'
-  }
-
-  return 'en'
+  return 'ja'
 }
 
 function getInitialFontScale(): FontScale {
