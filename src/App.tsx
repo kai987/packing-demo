@@ -201,6 +201,7 @@ type UiCopy = {
   outerSizeVolumetricWeightValue: (weight: string) => string
   outerSizeVolumetricWeightHint: string
   selectedBoxHint: string
+  copyBoardHint: string
   copyBoardImage: string
   copiedBoardImage: string
   copyBoardImageFailed: string
@@ -332,6 +333,7 @@ const uiCopy: Record<Language, UiCopy> = {
     outerSizeVolumetricWeightValue: (weight) => `Calculated volumetric weight: ${weight} kg`,
     outerSizeVolumetricWeightHint: 'Enter all three dimensions to calculate volumetric weight.',
     selectedBoxHint: 'The selected box feeds the box number, size, and canvas board.',
+    copyBoardHint: 'Click the copy button to copy the image below.',
     copyBoardImage: 'Copy board image',
     copiedBoardImage: 'Board image copied',
     copyBoardImageFailed: 'Copy failed',
@@ -440,6 +442,7 @@ const uiCopy: Record<Language, UiCopy> = {
     outerSizeVolumetricWeightValue: (weight) => `容积重量：${weight} kg`,
     outerSizeVolumetricWeightHint: '输入完整 3 个尺寸后会自动计算容积重量。',
     selectedBoxHint: '当前选中的箱子会同步到箱号、外寸和右侧看板。',
+    copyBoardHint: '点击复制按钮，可以复制下方图片。',
     copyBoardImage: '复制看板图片',
     copiedBoardImage: '已复制看板图片',
     copyBoardImageFailed: '复制失败',
@@ -548,6 +551,7 @@ const uiCopy: Record<Language, UiCopy> = {
     outerSizeVolumetricWeightValue: (weight) => `計算した容積重量: ${weight} kg`,
     outerSizeVolumetricWeightHint: '3 辺をすべて入力すると容積重量を計算します。',
     selectedBoxHint: '選択中の箱の番号・外寸・看板プレビューをここに反映します。',
+    copyBoardHint: 'コピーボタンをクリックすると、下の画像をコピーできます。',
     copyBoardImage: '看板画像をコピー',
     copiedBoardImage: '看板画像をコピーしました',
     copyBoardImageFailed: 'コピーに失敗しました',
@@ -2677,6 +2681,7 @@ function App() {
     const nextStep = stepOrder[currentIndex + 1]
 
     if (nextStep) {
+      setOpenHelpKey(null)
       const shouldScrollToWizardTop = activeStep === 'item' && nextStep === 'result'
 
       if (nextStep === 'result') {
@@ -2704,7 +2709,13 @@ function App() {
             return
           }
 
-          const top = window.scrollY + wizardCard.getBoundingClientRect().top - 88
+          const scrollOffset =
+            window.innerWidth <= 760
+              ? 114
+              : window.innerWidth <= 1100
+                ? 126
+                : 134
+          const top = window.scrollY + wizardCard.getBoundingClientRect().top - scrollOffset
           window.scrollTo({
             top: Math.max(0, top),
             behavior: 'smooth',
@@ -2719,11 +2730,13 @@ function App() {
     const previousStep = stepOrder[currentIndex - 1]
 
     if (previousStep) {
+      setOpenHelpKey(null)
       setActiveStep(previousStep)
     }
   }
 
   const resetWizard = () => {
+    setOpenHelpKey(null)
     setActiveStep('item')
     setIsItemMenuOpen(false)
     setActivePickerLineId(null)
@@ -3647,68 +3660,71 @@ function App() {
                     </div>
                   ) : null}
                   <div className="label-canvas-wrap">
-                    <button
-                      type="button"
-                      className={
-                        copyBoardState === 'success'
-                          ? 'label-preview-copy is-success'
-                          : copyBoardState === 'error'
-                            ? 'label-preview-copy is-error'
-                            : 'label-preview-copy'
-                      }
-                      aria-label={
-                        copyBoardState === 'success'
-                          ? ui.copiedBoardImage
-                          : copyBoardState === 'error'
-                            ? ui.copyBoardImageFailed
-                            : ui.copyBoardImage
-                      }
-                      title={
-                        copyBoardState === 'success'
-                          ? ui.copiedBoardImage
-                          : copyBoardState === 'error'
-                            ? ui.copyBoardImageFailed
-                            : ui.copyBoardImage
-                      }
-                      onClick={copyBoardImage}
-                    >
-                      {copyBoardState === 'success' ? (
-                        <svg viewBox="0 0 24 24" aria-hidden="true">
-                          <path
-                            d="M5 12.5 9.2 16.7 19 6.9"
-                            fill="none"
-                            stroke="currentColor"
-                            strokeWidth="2.2"
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                          />
-                        </svg>
-                      ) : (
-                        <svg viewBox="0 0 24 24" aria-hidden="true">
-                          <rect
-                            x="9"
-                            y="4"
-                            width="10"
-                            height="12"
-                            rx="2"
-                            fill="none"
-                            stroke="currentColor"
-                            strokeWidth="1.8"
-                          />
-                          <rect
-                            x="5"
-                            y="8"
-                            width="10"
-                            height="12"
-                            rx="2"
-                            fill="none"
-                            stroke="currentColor"
-                            strokeWidth="1.8"
-                          />
-                        </svg>
-                      )}
-                    </button>
-                    <canvas ref={boardCanvasRef} className="label-canvas" />
+                    <p className="label-canvas-hint">{ui.copyBoardHint}</p>
+                    <div className="label-canvas-stage">
+                      <button
+                        type="button"
+                        className={
+                          copyBoardState === 'success'
+                            ? 'label-preview-copy is-success'
+                            : copyBoardState === 'error'
+                              ? 'label-preview-copy is-error'
+                              : 'label-preview-copy'
+                        }
+                        aria-label={
+                          copyBoardState === 'success'
+                            ? ui.copiedBoardImage
+                            : copyBoardState === 'error'
+                              ? ui.copyBoardImageFailed
+                              : ui.copyBoardImage
+                        }
+                        title={
+                          copyBoardState === 'success'
+                            ? ui.copiedBoardImage
+                            : copyBoardState === 'error'
+                              ? ui.copyBoardImageFailed
+                              : ui.copyBoardImage
+                        }
+                        onClick={copyBoardImage}
+                      >
+                        {copyBoardState === 'success' ? (
+                          <svg viewBox="0 0 24 24" aria-hidden="true">
+                            <path
+                              d="M5 12.5 9.2 16.7 19 6.9"
+                              fill="none"
+                              stroke="currentColor"
+                              strokeWidth="2.2"
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                            />
+                          </svg>
+                        ) : (
+                          <svg viewBox="0 0 24 24" aria-hidden="true">
+                            <rect
+                              x="9"
+                              y="4"
+                              width="10"
+                              height="12"
+                              rx="2"
+                              fill="none"
+                              stroke="currentColor"
+                              strokeWidth="1.8"
+                            />
+                            <rect
+                              x="5"
+                              y="8"
+                              width="10"
+                              height="12"
+                              rx="2"
+                              fill="none"
+                              stroke="currentColor"
+                              strokeWidth="1.8"
+                            />
+                          </svg>
+                        )}
+                      </button>
+                      <canvas ref={boardCanvasRef} className="label-canvas" />
+                    </div>
                   </div>
                 </div>
 
