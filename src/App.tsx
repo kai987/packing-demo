@@ -1424,6 +1424,43 @@ function compareSplitPlans(left: SplitPlan, right: SplitPlan) {
     return left.boxCount - right.boxCount
   }
 
+  const leftOverallBalance = getSplitPlanOverallBalanceMetrics(left)
+  const rightOverallBalance = getSplitPlanOverallBalanceMetrics(right)
+
+  if (leftOverallBalance.largestSpread !== rightOverallBalance.largestSpread) {
+    return leftOverallBalance.largestSpread - rightOverallBalance.largestSpread
+  }
+
+  if (
+    leftOverallBalance.totalPairwiseDifference !==
+    rightOverallBalance.totalPairwiseDifference
+  ) {
+    return (
+      leftOverallBalance.totalPairwiseDifference -
+      rightOverallBalance.totalPairwiseDifference
+    )
+  }
+
+  const leftQuantitiesByCandidate = getSplitPlanQuantitiesByCandidate(left)
+  const rightQuantitiesByCandidate = getSplitPlanQuantitiesByCandidate(right)
+  const leftCandidateCountSignature =
+    getSplitPlanCandidateCountSignature(leftQuantitiesByCandidate)
+  const rightCandidateCountSignature =
+    getSplitPlanCandidateCountSignature(rightQuantitiesByCandidate)
+
+  if (leftCandidateCountSignature === rightCandidateCountSignature) {
+    const leftBalance = getSplitPlanBalanceMetrics(leftQuantitiesByCandidate)
+    const rightBalance = getSplitPlanBalanceMetrics(rightQuantitiesByCandidate)
+
+    if (leftBalance.largestGroupSpread !== rightBalance.largestGroupSpread) {
+      return leftBalance.largestGroupSpread - rightBalance.largestGroupSpread
+    }
+
+    if (leftBalance.totalPairwiseDifference !== rightBalance.totalPairwiseDifference) {
+      return leftBalance.totalPairwiseDifference - rightBalance.totalPairwiseDifference
+    }
+  }
+
   if (Math.abs(left.totalVolumetricWeight - right.totalVolumetricWeight) > 0.0001) {
     return left.totalVolumetricWeight - right.totalVolumetricWeight
   }
@@ -1432,14 +1469,114 @@ function compareSplitPlans(left: SplitPlan, right: SplitPlan) {
     return left.totalBoxOrder - right.totalBoxOrder
   }
 
-  const leftSignature = left.steps
-    .map((step) => `${getCandidateKey(step.candidate)}:${step.assignedQuantity}`)
-    .join('|')
-  const rightSignature = right.steps
-    .map((step) => `${getCandidateKey(step.candidate)}:${step.assignedQuantity}`)
-    .join('|')
+  const leftSignature = getCanonicalSplitPlanSignature(left)
+  const rightSignature = getCanonicalSplitPlanSignature(right)
 
   return leftSignature.localeCompare(rightSignature)
+}
+
+function getSplitPlanOverallBalanceMetrics(plan: SplitPlan) {
+  const sortedQuantities = [...plan.steps]
+    .map((step) => step.assignedQuantity)
+    .sort((left, right) => right - left)
+
+  if (sortedQuantities.length < 2) {
+    return {
+      largestSpread: 0,
+      totalPairwiseDifference: 0,
+    }
+  }
+
+  let totalPairwiseDifference = 0
+
+  for (let index = 0; index < sortedQuantities.length; index += 1) {
+    for (
+      let compareIndex = index + 1;
+      compareIndex < sortedQuantities.length;
+      compareIndex += 1
+    ) {
+      totalPairwiseDifference += sortedQuantities[index] - sortedQuantities[compareIndex]
+    }
+  }
+
+  return {
+    largestSpread: sortedQuantities[0] - sortedQuantities[sortedQuantities.length - 1],
+    totalPairwiseDifference,
+  }
+}
+
+function getSplitPlanQuantitiesByCandidate(plan: SplitPlan) {
+  const quantitiesByCandidate = new Map<string, number[]>()
+
+  for (const step of plan.steps) {
+    const candidateKey = getCandidateKey(step.candidate)
+    const quantities = quantitiesByCandidate.get(candidateKey)
+
+    if (quantities) {
+      quantities.push(step.assignedQuantity)
+      continue
+    }
+
+    quantitiesByCandidate.set(candidateKey, [step.assignedQuantity])
+  }
+
+  return quantitiesByCandidate
+}
+
+function getSplitPlanCandidateCountSignature(quantitiesByCandidate: Map<string, number[]>) {
+  return [...quantitiesByCandidate.entries()]
+    .map(([candidateKey, quantities]) => `${candidateKey}:${quantities.length}`)
+    .sort()
+    .join('|')
+}
+
+function getSplitPlanBalanceMetrics(quantitiesByCandidate: Map<string, number[]>) {
+  let largestGroupSpread = 0
+  let totalPairwiseDifference = 0
+
+  for (const quantities of quantitiesByCandidate.values()) {
+    if (quantities.length < 2) {
+      continue
+    }
+
+    const sortedQuantities = [...quantities].sort((left, right) => right - left)
+    const spread = sortedQuantities[0] - sortedQuantities[sortedQuantities.length - 1]
+
+    if (spread > largestGroupSpread) {
+      largestGroupSpread = spread
+    }
+
+    for (let index = 0; index < sortedQuantities.length; index += 1) {
+      for (
+        let compareIndex = index + 1;
+        compareIndex < sortedQuantities.length;
+        compareIndex += 1
+      ) {
+        totalPairwiseDifference += sortedQuantities[index] - sortedQuantities[compareIndex]
+      }
+    }
+  }
+
+  return {
+    largestGroupSpread,
+    totalPairwiseDifference,
+  }
+}
+
+function getCanonicalSplitPlanSignature(plan: SplitPlan) {
+  return [...plan.steps]
+    .sort((left, right) => {
+      const leftCandidateKey = getCandidateKey(left.candidate)
+      const rightCandidateKey = getCandidateKey(right.candidate)
+
+      if (leftCandidateKey !== rightCandidateKey) {
+        return leftCandidateKey.localeCompare(rightCandidateKey)
+      }
+
+      return right.assignedQuantity - left.assignedQuantity
+    })
+    .map((step) => `${getCandidateKey(step.candidate)}:${step.assignedQuantity}`)
+    .join('|')
 }
 
 function buildSplitPlan(candidates: Candidate[], quantity: number): SplitPlan | null {
@@ -2280,12 +2417,12 @@ function App() {
       exactMatches.length === 0 ? buildSplitPlan(relevantCandidates, effectiveQuantity) : null
     const splitPlanSteps = splitPlan
       ? [...splitPlan.steps].sort((left, right) => {
-          if (left.candidate.box.order !== right.candidate.box.order) {
-            return left.candidate.box.order - right.candidate.box.order
-          }
-
           if (left.assignedQuantity !== right.assignedQuantity) {
             return right.assignedQuantity - left.assignedQuantity
+          }
+
+          if (left.candidate.box.order !== right.candidate.box.order) {
+            return left.candidate.box.order - right.candidate.box.order
           }
 
           return getCandidateKey(left.candidate).localeCompare(getCandidateKey(right.candidate))
