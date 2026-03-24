@@ -1556,6 +1556,17 @@
     gap: 14px;
   }
 
+  .step-layout {
+    align-items: stretch;
+  }
+
+  .item-layout > .step-copy-block,
+  .item-layout > .field-stack,
+  .field-stack {
+    width: 100%;
+    max-width: none;
+  }
+
   .language-menu {
     top: max(10px, env(safe-area-inset-top));
     right: max(10px, env(safe-area-inset-right));
