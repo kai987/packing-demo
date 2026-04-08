@@ -1,6 +1,7 @@
 # packing-demo
 
-Vite をベースにした TypeScript + React のフロントエンドプロジェクトです。
+Vite をベースにした TypeScript + React のフロントエンドプロジェクトです。  
+<https://kai987.github.io/packing-demo/>
 
 ## プロジェクト内容
 
