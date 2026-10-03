@@ -481,6 +481,20 @@
   padding: 24px;
 }
 
+.draft-status {
+  margin: 0 0 16px;
+  color: var(--muted);
+  font-size: 0.8rem;
+  line-height: 1.5;
+}
+
+.calculation-feedback {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
 .step-layout {
   gap: 24px;
   align-items: flex-start;
